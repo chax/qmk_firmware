@@ -1,0 +1,3 @@
+SRC += muse.c
+TERMINAL_ENABLE = yes
+VELOCIKEY_ENABLE = yes
