@@ -200,8 +200,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 #ifdef AUDIO_ENABLE
   float plover_song[][2]     = SONG(PLOVER_SOUND);
   float plover_gb_song[][2]  = SONG(PLOVER_GOODBYE_SOUND);
-  float song[][2]  = SONG(E1M1_DOOM);
-
+  float song[][2]            = SONG(PLANCK_SOUND);
 #endif
 
 uint32_t layer_state_set_user(uint32_t state) {
@@ -300,28 +299,27 @@ void encoder_update_user(uint8_t index, bool clockwise) {
       }
     }
   } else if (IS_LAYER_ON(_ADJUST)) {
+#if defined(RGBLIGHT_ENABLE) || defined(RGB_MATRIX_ENABLE)
     if (clockwise) {
       rgblight_decrease_val();
     } else {
       rgblight_increase_val();
     }
+#endif
   } else if (IS_LAYER_ON(_RAISE)) {
     if (clockwise) {
-      register_code(KC_MS_WH_UP);
-      unregister_code(KC_MS_WH_UP);
+      tap_code(KC_MS_WH_UP);
     } else {
-      register_code(KC_MS_WH_DOWN);
-      unregister_code(KC_MS_WH_DOWN);
+      tap_code(KC_MS_WH_DOWN);
     }
   } else if (IS_LAYER_ON(_LOWER)) {
     if (clockwise) {
-      register_code(KC_PGUP);
-      unregister_code(KC_PGUP);
+      tap_code(KC_PGUP);
     } else {
-      register_code(KC_PGDN);
-      unregister_code(KC_PGDN);
+      tap_code(KC_PGDN);
     }
   } else if (IS_LAYER_ON(_NUMPAD)) {
+#if defined(RGBLIGHT_ENABLE) || defined(RGB_MATRIX_ENABLE)
     if (clockwise) {
       if (get_mods() & MODS_SHIFT_MASK) {
         rgblight_decrease_speed();
@@ -339,6 +337,7 @@ void encoder_update_user(uint8_t index, bool clockwise) {
         rgblight_step();
       }
     }
+#endif
   } else {
     if (clockwise) {
       tap_code(KC_VOLD);
@@ -348,45 +347,56 @@ void encoder_update_user(uint8_t index, bool clockwise) {
   }
 }
 
-void dip_update(uint8_t index, bool active) {
-  switch (index) {
-    case 0:
-      if (active) {
-        #ifdef AUDIO_ENABLE
-          PLAY_SONG(song);
-        #endif
-      } else {
-        #ifdef AUDIO_ENABLE
-          PLAY_SONG(song);
-        #endif
-      }
-      break;
-    case 1:
-      if (active) {
-        muse_mode = true;
-      } else {
-        muse_mode = false;
-        #ifdef AUDIO_ENABLE
-          stop_all_notes();
-        #endif
-      }
-   }
+void dip_switch_update_user(uint8_t index, bool active) {
+    switch (index) {
+        case 0: {
+#ifdef AUDIO_ENABLE
+            static bool play_sound = false;
+#endif
+            if (active) {
+#ifdef AUDIO_ENABLE
+                if (play_sound) { PLAY_SONG(song); }
+#endif
+                layer_on(_NUMPAD);
+            } else {
+#ifdef AUDIO_ENABLE
+                if (play_sound) { PLAY_SONG(song); }
+#endif
+                layer_off(_NUMPAD);
+            }
+#ifdef AUDIO_ENABLE
+            play_sound = true;
+#endif
+            break;
+        }
+        case 1:
+            if (active) {
+                muse_mode = true;
+            } else {
+                muse_mode = false;
+            }
+    }
 }
 
 void matrix_scan_user(void) {
-  #ifdef AUDIO_ENABLE
+#ifdef AUDIO_ENABLE
     if (muse_mode) {
-      if (muse_counter == 0) {
-        uint8_t muse_note = muse_offset + SCALE[muse_clock_pulse()];
-        if (muse_note != last_muse_note) {
-          stop_note(compute_freq_for_midi_note(last_muse_note));
-          play_note(compute_freq_for_midi_note(muse_note), 0xF);
-          last_muse_note = muse_note;
+        if (muse_counter == 0) {
+            uint8_t muse_note = muse_offset + SCALE[muse_clock_pulse()];
+            if (muse_note != last_muse_note) {
+                stop_note(compute_freq_for_midi_note(last_muse_note));
+                play_note(compute_freq_for_midi_note(muse_note), 0xF);
+                last_muse_note = muse_note;
+            }
         }
-      }
-      muse_counter = (muse_counter + 1) % muse_tempo;
+        muse_counter = (muse_counter + 1) % muse_tempo;
+    } else {
+        if (muse_counter) {
+            stop_all_notes();
+            muse_counter = 0;
+        }
     }
-  #endif
+#endif
 }
 
 void matrix_init_user(void){
